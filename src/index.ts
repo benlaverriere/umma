@@ -2,17 +2,22 @@ import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import * as chrono from "chrono-node";
 import dayjs from "dayjs";
+import open from "open";
 
 enum Endpoint {
   From = "from",
   To = "to",
 }
+type RelevantUnit = Extract<dayjs.UnitType, "year" | "month" | "date">;
+
 type ParamSet = {
-  readonly [index in dayjs.UnitType]?: string;
+  readonly [index in RelevantUnit]: string;
 };
 type ParamMap = {
   [index in Endpoint]: ParamSet;
 };
+
+type URLTuple = [string, number];
 
 const params: ParamMap = {
   from: { year: "year", month: "month", date: "day" },
@@ -21,24 +26,29 @@ const params: ParamMap = {
 
 function asURLTuple(
   date: dayjs.Dayjs,
-  part: dayjs.UnitType,
+  part: RelevantUnit,
   endpoint: Endpoint
-): string {
+): URLTuple {
+  // dayjs months are zero-indexed; timeanddate.com's are one-indexed
   const adjustment = part === "month" ? +1 : 0;
-  return `${params[endpoint][part]}=${date.get(part) + adjustment}`;
+  return [params[endpoint][part], date.get(part) + adjustment];
 }
 
-function allTuplesFor(date: dayjs.Dayjs, as: Endpoint): string {
-  return Object.keys(params[as])
-    .map((part) => asURLTuple(date, part as dayjs.UnitType, as))
-    .join("&");
+function allTuplesFor(date: dayjs.Dayjs, as: Endpoint): URLTuple[] {
+  return Object.keys(params[as]).map((part) =>
+    asURLTuple(date, part as RelevantUnit, as)
+  );
 }
 
-function bothEndpoints(from: dayjs.Dayjs, to: dayjs.Dayjs): string {
+function bothEndpoints(from: dayjs.Dayjs, to: dayjs.Dayjs): URLTuple[] {
   return [
-    allTuplesFor(from, Endpoint.From),
-    allTuplesFor(to, Endpoint.To),
-  ].join("&");
+    ...allTuplesFor(from, Endpoint.From),
+    ...allTuplesFor(to, Endpoint.To),
+  ];
+}
+
+function tupleArrayAsString(tuples: URLTuple[]): string {
+  return tuples.map((tuple) => tuple.join("=")).join("&");
 }
 
 function safelyToDayjs(date: string): dayjs.Dayjs | null {
@@ -46,7 +56,7 @@ function safelyToDayjs(date: string): dayjs.Dayjs | null {
   const dayjsDate = dayjs(chronoDate);
 
   if (!chronoDate || !dayjsDate.isValid()) {
-    console.error(`'${date}' doesn't make sense as a date.`);
+    console.error(date, " doesn't make sense as a date.");
     process.exitCode = 1;
     return null;
   }
@@ -55,6 +65,7 @@ function safelyToDayjs(date: string): dayjs.Dayjs | null {
 }
 
 const args = yargs(hideBin(process.argv))
+  .usage("$0 --from <date> --until <date>")
   .options({
     from: {
       describe: "start date, included in the calendar",
@@ -68,6 +79,18 @@ const args = yargs(hideBin(process.argv))
       demandOption: true,
       alias: ["t", "until", "u", "end", "e", "til"],
     },
+    holidays: {
+      boolean: true,
+      describe: "include holidays and moon phases",
+      default: false,
+      alias: ["moon"],
+    },
+    open: {
+      boolean: true,
+      describe: "open URL automatically",
+      default: false,
+      alias: ["o"],
+    },
   })
   .epilogue(
     "Both dates can be anything that Chrono can parse, like '17 August 2053' or '3 months from now'. See https://github.com/wanasit/chrono for details."
@@ -76,18 +99,26 @@ const args = yargs(hideBin(process.argv))
 const fromDate = safelyToDayjs(args.from);
 const toDate = safelyToDayjs(args.to)?.subtract(1, "day");
 
-const baseURL = "https://www.timeanddate.com/calendar/print.html?";
-const formatURLParams = "&country=1&typ=4&cols=1&display=1";
+const baseURL = "https://www.timeanddate.com/calendar/print.html";
+const formatURLParams: URLTuple[] = [
+  ["country", 1],
+  ["typ", 4],
+  ["cols", 1],
+  ["display", 1],
+];
+if (args.holidays) {
+  formatURLParams.push(["df", 1]);
+}
 const cliDateOutputFormat = "YYYY-MM-DD";
 
 if (!fromDate || !toDate) {
   process.exitCode = 1;
 } else {
-  const calendarURL = [
-    baseURL,
-    bothEndpoints(fromDate, toDate),
-    formatURLParams,
-  ].join("");
+  const urlParams: URLTuple[] = [
+    ...bothEndpoints(fromDate, toDate),
+    ...formatURLParams,
+  ];
+  const calendarURL = [baseURL, tupleArrayAsString(urlParams)].join("?");
 
   console.log(
     `Calendar from ${args.from} (${fromDate.format(
@@ -95,4 +126,7 @@ if (!fromDate || !toDate) {
     )}) until ${args.to} (${toDate.format(cliDateOutputFormat)}):`
   );
   console.log(calendarURL);
+  if (args.open) {
+    open(calendarURL);
+  }
 }
