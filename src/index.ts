@@ -52,10 +52,10 @@ function tupleArrayAsString(tuples: URLTuple[]): string {
 }
 
 function safelyToDayjs(date: string): dayjs.Dayjs | null {
-  const chronoDate = chrono.parseDate(date);
+  const chronoDate: Date | null = chrono.parseDate(date);
   const dayjsDate = dayjs(chronoDate);
 
-  if (!chronoDate || !dayjsDate.isValid()) {
+  if (chronoDate === null || !dayjsDate.isValid()) {
     console.error(date, " doesn't make sense as a date.");
     process.exitCode = 1;
     return null;
@@ -127,6 +127,8 @@ if (!fromDate || !toDate) {
   );
   console.log(calendarURL);
   if (args.open) {
-    open(calendarURL);
+    open(calendarURL).catch(() => {
+      process.exitCode = 1;
+    });
   }
 }
