@@ -14,10 +14,10 @@ type ParamSet = {
   readonly [index in RelevantUnit]: string;
 };
 type ParamMap = {
-  [index in Endpoint]: ParamSet;
+  readonly [index in Endpoint]: ParamSet;
 };
 
-type URLTuple = [string, number];
+type URLTuple = readonly [string, number];
 
 const params: ParamMap = {
   from: { year: "year", month: "month", date: "day" },
@@ -34,20 +34,23 @@ function asURLTuple(
   return [params[endpoint][part], date.get(part) + adjustment];
 }
 
-function allTuplesFor(date: dayjs.Dayjs, as: Endpoint): URLTuple[] {
+function allTuplesFor(date: dayjs.Dayjs, as: Endpoint): readonly URLTuple[] {
   return Object.keys(params[as]).map((part) =>
     asURLTuple(date, part as RelevantUnit, as)
   );
 }
 
-function bothEndpoints(from: dayjs.Dayjs, to: dayjs.Dayjs): URLTuple[] {
+function bothEndpoints(
+  from: dayjs.Dayjs,
+  to: dayjs.Dayjs
+): readonly URLTuple[] {
   return [
     ...allTuplesFor(from, Endpoint.From),
     ...allTuplesFor(to, Endpoint.To),
   ];
 }
 
-function tupleArrayAsString(tuples: URLTuple[]): string {
+function tupleArrayAsString(tuples: readonly URLTuple[]): string {
   return tuples.map((tuple) => tuple.join("=")).join("&");
 }
 
