@@ -1,4 +1,5 @@
 import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 import * as chrono from "chrono-node";
 import dayjs from "dayjs";
 
@@ -40,29 +41,58 @@ function bothEndpoints(from: dayjs.Dayjs, to: dayjs.Dayjs): string {
   ].join("&");
 }
 
-const args = yargs
-  .options({
-    from: { type: "string", demandOption: true, alias: "f" },
-    to: { type: "string", demandOption: true, alias: "t" },
-  })
-  .alias({ to: ["until", "u", "end", "e"], from: ["start", "s"] }).argv;
+function safelyToDayjs(date: string): dayjs.Dayjs | null {
+  const chronoDate = chrono.parseDate(date);
+  const dayjsDate = dayjs(chronoDate);
 
-const fromDate = dayjs(chrono.parseDate(args.from));
-const toDate = dayjs(chrono.parseDate(args.to)).subtract(1, "day");
+  if (!chronoDate || !dayjsDate.isValid()) {
+    console.error(`'${date}' doesn't make sense as a date.`);
+    process.exitCode = 1;
+    return null;
+  }
+
+  return dayjsDate;
+}
+
+const args = yargs(hideBin(process.argv))
+  .options({
+    from: {
+      describe: "start date, included in the calendar",
+      type: "string",
+      demandOption: true,
+      alias: ["f", "start", "s"],
+    },
+    to: {
+      describe: "end date, not included in the calendar",
+      type: "string",
+      demandOption: true,
+      alias: ["t", "until", "u", "end", "e", "til"],
+    },
+  })
+  .epilogue(
+    "Both dates can be anything that Chrono can parse, like '17 August 2053' or '3 months from now'. See https://github.com/wanasit/chrono for details."
+  ).argv;
+
+const fromDate = safelyToDayjs(args.from);
+const toDate = safelyToDayjs(args.to)?.subtract(1, "day");
 
 const baseURL = "https://www.timeanddate.com/calendar/print.html?";
-const formatOptions = "&country=1&typ=4&cols=1&display=1";
+const formatURLParams = "&country=1&typ=4&cols=1&display=1";
+const cliDateOutputFormat = "YYYY-MM-DD";
 
-const calendarURL = [
-  baseURL,
-  bothEndpoints(fromDate, toDate),
-  formatOptions,
-].join("");
-const outputFormat = "YYYY-MM-DD";
+if (!fromDate || !toDate) {
+  process.exitCode = 1;
+} else {
+  const calendarURL = [
+    baseURL,
+    bothEndpoints(fromDate, toDate),
+    formatURLParams,
+  ].join("");
 
-console.log(
-  `Calendar from ${args.from} (${fromDate.format(outputFormat)}) until ${
-    args.to
-  } (${toDate.format(outputFormat)}):`
-);
-console.log(calendarURL);
+  console.log(
+    `Calendar from ${args.from} (${fromDate.format(
+      cliDateOutputFormat
+    )}) until ${args.to} (${toDate.format(cliDateOutputFormat)}):`
+  );
+  console.log(calendarURL);
+}
