@@ -1,0 +1,31 @@
+{
+  "name": "umma",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/benlaverriere/umma.git"
+  },
+  "author": "",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/benlaverriere/umma/issues"
+  },
+  "homepage": "https://github.com/benlaverriere/umma#readme",
+  "devDependencies": {
+    "@types/node": "^15.3.1",
+    "@types/yargs": "^16.0.2",
+    "prettier": "2.3.0",
+    "ts-node": "^9.1.1"
+  },
+  "dependencies": {
+    "chrono-node": "^2.2.6",
+    "dayjs": "^1.10.4",
+    "yargs": "^17.0.1"
+  }
+}
