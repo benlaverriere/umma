@@ -4,40 +4,24 @@ import * as chrono from "chrono-node";
 import dayjs from "dayjs";
 import open from "open";
 
-enum Endpoint {
-  From = "from",
-  To = "to",
-}
-type RelevantUnit = Extract<dayjs.UnitType, "year" | "month" | "date">;
-
-type ParamSet = {
-  readonly [index in RelevantUnit]: string;
-};
-type ParamMap = {
-  readonly [index in Endpoint]: ParamSet;
-};
-
-type URLTuple = readonly [string, number];
+import { Endpoint, ParamSet, ParamMap, RelevantUnit, URLTuple } from "./types";
 
 const params: ParamMap = {
   from: { year: "year", month: "month", date: "day" },
   to: { year: "y2", month: "m2", date: "d2" },
 };
 
-function asURLTuple(
+function allTuplesFor(
   date: dayjs.Dayjs,
-  part: RelevantUnit,
   endpoint: Endpoint
-): URLTuple {
-  // dayjs months are zero-indexed; timeanddate.com's are one-indexed
-  const adjustment = part === "month" ? +1 : 0;
-  return [params[endpoint][part], date.get(part) + adjustment];
-}
+): readonly URLTuple[] {
+  const paramMapping = params[endpoint];
+  return Object.entries(paramMapping).map(([part, label]) => {
+    // dayjs months are zero-indexed; timeanddate.com's are one-indexed
+    const adjustment = part === "month" ? +1 : 0;
 
-function allTuplesFor(date: dayjs.Dayjs, as: Endpoint): readonly URLTuple[] {
-  return Object.keys(params[as]).map((part) =>
-    asURLTuple(date, part as RelevantUnit, as)
-  );
+    return [label, date.get(part as RelevantUnit) + adjustment];
+  });
 }
 
 function bothEndpoints(
