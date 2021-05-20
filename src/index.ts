@@ -128,6 +128,7 @@ if (!fromDate || !toDate) {
   console.log(calendarURL);
   if (args.open) {
     open(calendarURL).catch(() => {
+      console.error("Could not open URL in default browser.");
       process.exitCode = 1;
     });
   }
